@@ -612,7 +612,10 @@ class VCruiseCarrot:
         v_cruise_kph = self._v_cruise_desired(CS, v_cruise_kph)
     elif self._gas_pressed_count == -1:
       if 0 < self.d_rel < CS.vEgo * 0.8:
-        self._cruise_control(-1, 0, "Cruise off (lead car too close)")
+        if CS.vEgo < 1.0:
+          self._cruise_control(1, -1 if self.aTarget > 0.0 else 0, "Cruise on (safe speed)")
+        else:
+          self._cruise_control(-1, 0, "Cruise off (lead car too close)")
       elif self.v_ego_kph_set < 30:
         self._cruise_control(-1, 0, "Cruise off (gas speed)")
       elif self.xState == 3:
@@ -622,7 +625,7 @@ class VCruiseCarrot:
         v_cruise_kph = self.v_ego_kph_set
         self._cruise_control(1, -1 if self.aTarget > 0.0 else 0, "Cruise on (gas pressed)")
     elif self._brake_pressed_count == -1 and self._soft_hold_active == 0:
-      if 40 < self.v_ego_kph_set:
+      if self.v_ego_kph_set > 40:
         v_cruise_kph = self.v_ego_kph_set
         self._cruise_control(1, -1 if self.aTarget > 0.0 else 0, "Cruise on (speed)")
       elif abs(CS.steeringAngleDeg) < 20:
