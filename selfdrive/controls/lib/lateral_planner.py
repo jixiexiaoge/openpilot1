@@ -81,15 +81,16 @@ class LateralPlanner:
     self.lat_mpc.reset(x0=self.x0)
 
   def update(self, sm):
-    global PATH_COST, LATERAL_ACCEL_COST, LATERAL_JERK_COST, STEERING_RATE_COST
+    global LATERAL_ACCEL_COST, LATERAL_JERK_COST, STEERING_RATE_COST
     self.readParams -= 1
     if self.readParams <= 0:
       self.readParams = 100
       self.useLaneLineSpeedApply = self.params.get_int("UseLaneLineSpeedApply")
       self.pathOffset = float(self.params.get_int("PathOffset")) * 0.01
-      PATH_COST = self.params.get_float("LatMpcPathCost") * 0.01
+      self.lateralPathCost = self.params.get_float("LatMpcPathCost") * 0.01
+      self.lateralPathCostTurn = self.params.get_float("LatMpcPathCostTurn") * 0.01
       self.lateralMotionCost = self.params.get_float("LatMpcMotionCost") * 0.01
-      self.lateralMotionCost2 = self.params.get_float("LatMpcMotionCost2") * 0.01
+      self.lateralMotionCostTurn = self.params.get_float("LatMpcMotionCostTurn") * 0.01
       LATERAL_ACCEL_COST = self.params.get_float("LatMpcAccelCost") * 0.01
       LATERAL_JERK_COST = self.params.get_float("LatMpcJerkCost") * 0.01
       STEERING_RATE_COST = self.params.get_float("LatMpcSteeringRateCost")
@@ -138,15 +139,15 @@ class LateralPlanner:
       self.LP.lane_change_multiplier = 1.0
 
     lateral_motion_cost = self.lateralMotionCost
-    path_cost = PATH_COST
+    path_cost = self.lateralPathCost
     atc_type = sm['carrotMan'].atcType
     if atc_activate:
       if atc_type == "turn left" and (md.orientationRate.z[-1] > 0.1 or md.meta.desireState[1] > 0.1):
-        lateral_motion_cost = self.lateralMotionCost2
-        #path_cost *= 2
+        lateral_motion_cost = self.lateralMotionCostTurn
+        path_cost = self.lateralPathCostTurn
       elif atc_type == "turn right" and (md.orientationRate.z[-1] < -0.1 or md.meta.desireState[2] > 0.1):
-        lateral_motion_cost = self.lateralMotionCost2
-        #path_cost *= 2
+        lateral_motion_cost = self.lateralMotionCostTurn
+        path_cost = self.lateralPathCostTurn
 
     # lanelines calculation?
     self.LP.lanefull_mode = self.useLaneLineMode
