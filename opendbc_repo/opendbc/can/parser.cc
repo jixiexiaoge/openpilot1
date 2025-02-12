@@ -228,11 +228,11 @@ void CANParser::UpdateValid(uint64_t nanos) {
     if (state.check_threshold > 0 && (missing || timed_out)) {
       if (show_missing && !bus_timeout) {
         if (missing) {
-            if (error_print_count++ < 20) {
+            if (error_print_count++ < 40) {
                 LOGE_100("0x%X '%s' NOT SEEN", state.address, state.name.c_str());
             }
         } else if (timed_out) {
-            if (error_print_count++ < 20) {
+            if (error_print_count++ < 40) {
                 LOGE_100("0x%X '%s' TIMED OUT", state.address, state.name.c_str());
             }
         }
