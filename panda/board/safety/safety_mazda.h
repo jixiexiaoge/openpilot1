@@ -83,7 +83,7 @@ static bool mazda_tx_hook(const CANPacket_t *to_send) {
       // only allow cancel while contrls not allowed
       bool cancel_cmd = (GET_BYTE(to_send, 0) == 0x1U);
       if (!controls_allowed && !cancel_cmd) {
-        tx = false;
+        //tx = false;
       }
     }
   }

@@ -440,6 +440,8 @@ class CarStateBase(ABC):
     self.v_ego_clu_kf = KF1D(x0=x0, A=A, C=C[0], K=K)
 
     self.softHoldActive = 0
+    self.is_metric = True
+    self.lkas_enabled = False
 
   @abstractmethod
   def update(self, can_parsers) -> structs.CarState:

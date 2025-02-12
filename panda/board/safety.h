@@ -780,7 +780,7 @@ void pcm_cruise_check(bool cruise_engaged) {
   // Enter controls on rising edge of stock ACC, exit controls if stock ACC disengages
   if (!cruise_engaged) {
     controls_allowed = false;
-    print("controls_allowed(pcm) = false\n");
+    //print("controls_allowed(pcm) = false\n");
   }
   if (cruise_engaged && !cruise_engaged_prev) {
     controls_allowed = true;
