@@ -186,7 +186,7 @@ class LatControlTorque(LatControl):
           actual_lateral_jerk = actual_curvature_rate * CS.vEgo ** 2
       else:
         actual_curvature_llk = llk.angularVelocityCalibrated.value[2] / CS.vEgo
-        actual_curvature = interp(CS.vEgo, [2.0, 5.0], [actual_curvature_vm, actual_curvature_llk])
+        actual_curvature = np.interp(CS.vEgo, [2.0, 5.0], [actual_curvature_vm, actual_curvature_llk])
         curvature_deadzone = 0.0
       desired_lateral_accel = desired_curvature * CS.vEgo ** 2
 
