@@ -1344,8 +1344,8 @@ class CarrotServ:
       distanceTraveled = sm['selfdriveState'].distanceTraveled
       delta_dist = distanceTraveled - self.totalDistance
       self.totalDistance = distanceTraveled
-      steer_torque = 0.0 #sm['controlsState'].actuators.steer
-      turn_speed_ratio = np.interp(abs(steer_torque), [0.7, 1.0], [1.0, 0.6])
+      steer_torque = sm['carControl'].actuators.steer
+      turn_speed_ratio = np.interp(abs(steer_torque), [0.8, 1.0], [1.0, 0.6])
       self.turn_speed_ratio = self.turn_speed_ratio * 0.9 + turn_speed_ratio * 0.1
     else:
       v_ego = v_ego_kph = 0
@@ -1445,9 +1445,6 @@ class CarrotServ:
       #speed_n_sources.append((self.calculate_current_speed(dist, speed * self.mapTurnSpeedFactor, 0, 1.2), "route"))
 
     desired_speed, source = min(speed_n_sources, key=lambda x: x[0])
-    if self.turn_speed_ratio < 1.0:
-      #desired_speed *= self.turn_speed_ratio
-      source += "T"
 
     if CS is not None:
       if source != self.source_last:
@@ -1461,6 +1458,13 @@ class CarrotServ:
       if desired_speed < self.gas_override_speed:
         source = "gas"
         desired_speed = self.gas_override_speed
+        
+      if self.turn_speed_ratio < 0.95:
+        if self.turn_speed_ratio < 0.5:
+          print("ERROR: turn_speed_ratio < 0.5", self.turn_speed_ratio)
+        else:      
+          desired_speed *= self.turn_speed_ratio
+          source += "T"
 
       self.debugText = ""#f"desired={desired_speed:.1f},{source},g={self.gas_override_speed:.0f}"
 
