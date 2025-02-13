@@ -1446,7 +1446,7 @@ class CarrotServ:
 
     desired_speed, source = min(speed_n_sources, key=lambda x: x[0])
     if self.turn_speed_ratio < 1.0:
-      desired_speed *= self.turn_speed_ratio
+      #desired_speed *= self.turn_speed_ratio
       source += "T"
 
     if CS is not None:
