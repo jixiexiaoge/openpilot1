@@ -1344,7 +1344,7 @@ class CarrotServ:
       distanceTraveled = sm['selfdriveState'].distanceTraveled
       delta_dist = distanceTraveled - self.totalDistance
       self.totalDistance = distanceTraveled
-      steer_torque = sm['controlsState'].actuators.steer
+      steer_torque = 0.0 #sm['controlsState'].actuators.steer
       turn_speed_ratio = np.interp(abs(steer_torque), [0.7, 1.0], [1.0, 0.6])
       self.turn_speed_ratio = self.turn_speed_ratio * 0.9 + turn_speed_ratio * 0.1
     else:
