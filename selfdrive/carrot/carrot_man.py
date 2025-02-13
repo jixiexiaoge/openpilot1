@@ -895,6 +895,8 @@ class CarrotServ:
     self.gas_override_speed = 0
     self.source_last = "none"
 
+    self.turn_speed_ratio = 1.0
+
     self.gpsDelayTimeAdjust = 2.0
 
     self.debugText = ""
@@ -1342,10 +1344,14 @@ class CarrotServ:
       distanceTraveled = sm['selfdriveState'].distanceTraveled
       delta_dist = distanceTraveled - self.totalDistance
       self.totalDistance = distanceTraveled
+      steer_torque = sm['controlsState'].actuators.steer
+      turn_speed_ratio = np.interp(abs(steer_torque), [0.7, 1.0], [1.0, 0.6])
+      self.turn_speed_ratio = self.turn_speed_ratio * 0.9 + turn_speed_ratio * 0.1
     else:
       v_ego = v_ego_kph = 0
       delta_dist = 0
       CS = None
+      self.turn_speed_ratio = 1.0
 
     #self.bearing = self.nPosAngle #self._update_gps(v_ego, sm)
     self.bearing = self._update_gps(v_ego, sm)
@@ -1439,6 +1445,9 @@ class CarrotServ:
       #speed_n_sources.append((self.calculate_current_speed(dist, speed * self.mapTurnSpeedFactor, 0, 1.2), "route"))
 
     desired_speed, source = min(speed_n_sources, key=lambda x: x[0])
+    if self.turn_speed_ratio < 1.0:
+      desired_speed *= self.turn_speed_ratio
+      source += "T"
 
     if CS is not None:
       if source != self.source_last:
