@@ -128,10 +128,26 @@ class CarController(CarControllerBase):
     error_limit = 5.0  
     apply_angle = np.clip(apply_angle, CS.out.steeringAngleDeg - error_limit, CS.out.steeringAngleDeg + error_limit)
 
-    max_torque = 200
-    ego_weight = np.interp(CS.out.vEgoCluster, [0, 5, 10, 20], [0.2, 0.3, 0.5, 1.0])
-    self.driver_applied_torque_reducer = max(30, min(150, self.driver_applied_torque_reducer + (-1 if abs(CS.out.steeringTorque) > 200 else 1)))
-    self.lkas_max_torque = int(round(max_torque * ego_weight * (self.driver_applied_torque_reducer / 150)))
+    #max_torque = 200
+    #ego_weight = np.interp(CS.out.vEgoCluster, [0, 5, 10, 20], [0.2, 0.3, 0.5, 1.0])
+    #self.driver_applied_torque_reducer = max(30, min(150, self.driver_applied_torque_reducer + (-1 if abs(CS.out.steeringTorque) > 200 else 1)))
+    #self.lkas_max_torque = int(round(max_torque * ego_weight * (self.driver_applied_torque_reducer / 150)))
+    MAX_TORQUE = 240
+    ego_weight = np.interp(CS.out.vEgo, [0, 5, 10, 20], [0.2, 0.3, 0.5, 1.0])
+    if abs(CS.out.steeringTorque) > 700:
+      self.driver_applied_torque_reducer -= 1
+      if self.driver_applied_torque_reducer < 30:
+        self.driver_applied_torque_reducer = 30
+    else:
+      self.driver_applied_torque_reducer += 1
+      if self.driver_applied_torque_reducer > 150:
+        self.driver_applied_torque_reducer = 150
+
+    if self.driver_applied_torque_reducer < 150:
+      self.lkas_max_torque = int(round(MAX_TORQUE * ego_weight * (self.driver_applied_torque_reducer / 150)))
+    else:
+      self.lkas_max_torque = MAX_TORQUE * ego_weight
+
 
     if not CC.latActive:
       apply_angle = CS.out.steeringAngleDeg
