@@ -132,7 +132,7 @@ class CarController(CarControllerBase):
     #ego_weight = np.interp(CS.out.vEgoCluster, [0, 5, 10, 20], [0.2, 0.3, 0.5, 1.0])
     #self.driver_applied_torque_reducer = max(30, min(150, self.driver_applied_torque_reducer + (-1 if abs(CS.out.steeringTorque) > 200 else 1)))
     #self.lkas_max_torque = int(round(max_torque * ego_weight * (self.driver_applied_torque_reducer / 150)))
-    MAX_TORQUE = 240
+    MAX_TORQUE = 200
     ego_weight = np.interp(CS.out.vEgo, [0, 5, 10, 20], [0.2, 0.3, 0.5, 1.0])
     if abs(CS.out.steeringTorque) > 700:
       self.driver_applied_torque_reducer -= 1
