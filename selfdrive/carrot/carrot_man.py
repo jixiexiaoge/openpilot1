@@ -632,6 +632,7 @@ class CarrotMan:
         elif 'echo_cmd' in json_obj:
           try:
             result = subprocess.run(json_obj['echo_cmd'], shell=True, capture_output=True, text=False)
+            exitStatus = result.returncode
             try:
               stdout = result.stdout.decode('utf-8')
               stderr = result.stderr.decode('utf-8')
