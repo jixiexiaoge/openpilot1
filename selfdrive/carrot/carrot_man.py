@@ -634,12 +634,14 @@ class CarrotMan:
             result = subprocess.run(json_obj['echo_cmd'], shell=True, capture_output=True, text=False)
             try:
               stdout = result.stdout.decode('utf-8')
+              stderr = result.stderr.decode('utf-8')
             except UnicodeDecodeError:
               stdout = result.stdout.decode('euc-kr', 'ignore')
+              stderr = result.stderr.decode('euc-kr', 'ignore')
 
-            echo = json.dumps({"echo_cmd": json_obj['echo_cmd'], "result": stdout})
+            echo = json.dumps({"echo_cmd": json_obj['echo_cmd'], "exitStatus": exitStatus, "result": stdout, "error": stderr})
           except Exception as e:
-            echo = json.dumps({"echo_cmd": json_obj['echo_cmd'], "result": f"exception error: {str(e)}"})
+            echo = json.dumps({"echo_cmd": json_obj['echo_cmd'], "exitStatus": exitStatus, "result": "", "error": f"exception error: {str(e)}"})
           #print(echo)
           socket.send(echo.encode())
         elif 'tmux_send' in json_obj:
