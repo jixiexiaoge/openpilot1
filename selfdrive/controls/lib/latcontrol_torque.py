@@ -148,7 +148,13 @@ class LatControlTorque(LatControl):
       if lateralTorqueCustom > 0:
         self.torque_params.latAccelFactor = self.params.get_float("LateralTorqueAccelFactor")*0.001
         self.torque_params.friction = self.params.get_float("LateralTorqueFriction")*0.001
+        lateralTorqueKp = self.params.get_float("LateralTorqueKpV")*0.01
+        lateralTorqueKi = self.params.get_float("LateralTorqueKiV")*0.01
+        lateralTorqueKf = self.params.get_float("LateralTorqueKf")*0.01
         lateralTorqueKd = self.params.get_float("LateralTorqueKd")*0.01
+        self.pid._k_p = [[0], [lateralTorqueKp]]
+        self.pid._k_i = [[0], [lateralTorqueKi]]
+        self.pid.k_f = lateralTorqueKf
         self.pid._k_d = [[0], [lateralTorqueKd]]
         self.torque_params.latAccelOffset = self.latAccelOffset_default
       elif self.lateralTorqueCustom > 1:  # 1 -> 0, reset to default
@@ -180,7 +186,7 @@ class LatControlTorque(LatControl):
           actual_lateral_jerk = actual_curvature_rate * CS.vEgo ** 2
       else:
         actual_curvature_llk = llk.angularVelocityCalibrated.value[2] / CS.vEgo
-        actual_curvature = interp(CS.vEgo, [2.0, 5.0], [actual_curvature_vm, actual_curvature_llk])
+        actual_curvature = np.interp(CS.vEgo, [2.0, 5.0], [actual_curvature_vm, actual_curvature_llk])
         curvature_deadzone = 0.0
       desired_lateral_accel = desired_curvature * CS.vEgo ** 2
 

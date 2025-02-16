@@ -3,6 +3,7 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include <thread> //차선캘리
 
 #include <QDebug>
 #include <QProcess>
@@ -181,6 +182,11 @@ DevicePanel::DevicePanel(SettingsWindow *parent) : ListWidget(parent) {
   reboot_btn->setObjectName("reboot_btn");
   power_layout->addWidget(reboot_btn);
   QObject::connect(reboot_btn, &QPushButton::clicked, this, &DevicePanel::reboot);
+  //차선캘리
+  QPushButton *reset_CalibBtn = new QPushButton(tr("ReCalibration"));
+  reset_CalibBtn->setObjectName("reset_CalibBtn");
+  power_layout->addWidget(reset_CalibBtn);
+  QObject::connect(reset_CalibBtn, &QPushButton::clicked, this, &DevicePanel::calibration);
 
   QPushButton* poweroff_btn = new QPushButton(tr("关机"));
   poweroff_btn->setObjectName("poweroff_btn");
@@ -268,6 +274,8 @@ DevicePanel::DevicePanel(SettingsWindow *parent) : ListWidget(parent) {
   setStyleSheet(R"(
     #reboot_btn { height: 120px; border-radius: 15px; background-color: #2CE22C; }
     #reboot_btn:pressed { background-color: #24FF24; }
+    #reset_CalibBtn { height: 120px; border-radius: 15px; background-color: #FFBB00; }
+    #reset_CalibBtn:pressed { background-color: #FF2424; }
     #poweroff_btn { height: 120px; border-radius: 15px; background-color: #E22C2C; }
     #poweroff_btn:pressed { background-color: #FF2424; }
     #init_btn { height: 120px; border-radius: 15px; background-color: #2C2CE2; }
@@ -292,6 +300,7 @@ DevicePanel::DevicePanel(SettingsWindow *parent) : ListWidget(parent) {
   connect(dcamBtn, &ButtonControl::clicked, [=]() { emit showDriverView(); });
   addItem(dcamBtn);
 
+
   auto resetCalibBtn = new ButtonControl(tr("重置校准"), tr("重置"), "");
   connect(resetCalibBtn, &ButtonControl::showDescriptionEvent, this, &DevicePanel::updateCalibDescription);
   connect(resetCalibBtn, &ButtonControl::clicked, [&]() {
@@ -307,6 +316,7 @@ DevicePanel::DevicePanel(SettingsWindow *parent) : ListWidget(parent) {
   addItem(resetCalibBtn);
 
   auto retrainingBtn = new ButtonControl(tr("查看培训指南"), tr("查看"), tr("查看 openpilot 的规则、功能和限制"));
+
   connect(retrainingBtn, &ButtonControl::clicked, [=]() {
     if (ConfirmationDialog::confirm(tr("确定要查看培训指南吗？"), tr("查看"), this)) {
       emit reviewTrainingGuide();
@@ -345,7 +355,6 @@ DevicePanel::DevicePanel(SettingsWindow *parent) : ListWidget(parent) {
         btn->setEnabled(offroad);
       }
     }
-    resetCalibBtn->setEnabled(true);
     translateBtn->setEnabled(true);
   });
 
@@ -385,6 +394,25 @@ void DevicePanel::reboot() {
     }
   } else {
     ConfirmationDialog::alert(tr("请先取消控制再重启"), this);
+  }
+}
+
+//차선캘리
+void execAndReboot(const std::string& cmd) {
+    system(cmd.c_str());
+    Params().putBool("DoReboot", true);
+}
+
+void DevicePanel::calibration() {
+  if (!uiState()->engaged()) {
+    if (ConfirmationDialog::confirm(tr("Are you sure you want to reset calibration?"), tr("ReCalibration"), this)) {
+      if (!uiState()->engaged()) {
+        std::thread worker(execAndReboot, "cd /data/params/d_tmp;  rm -f CalibrationParams");
+        worker.detach();
+      }
+    }
+  } else {
+    ConfirmationDialog::alert(tr("Reboot & Disengage to Calibration"), this);
   }
 }
 
@@ -627,6 +655,8 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   cruiseToggles->addItem(new CValueControl("TrafficLightDetectMode", "红绿灯检测模式", "0:无, 1:仅停车, 2:停车和启动", "../assets/offroad/icon_road.png", 0, 2, 1));
 
   latLongToggles = new ListWidget(this);
+
+
   latLongToggles->addItem(new CValueControl("UseLaneLineSpeed", "车道线模式速度(0)", "使用车道线模式，使用lat_mpc控制", "../assets/offroad/icon_logic.png", 0, 200, 5));
   latLongToggles->addItem(new CValueControl("UseLaneLineCurveSpeed", "车道线模式弯道速度(0)", "车道线模式，仅高速", "../assets/offroad/icon_logic.png", 0, 200, 5));
   latLongToggles->addItem(new CValueControl("AdjustLaneOffset", "调整车道偏移(0)厘米", "", "../assets/offroad/icon_logic.png", 0, 500, 5));
@@ -657,6 +687,7 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   latLongToggles->addItem(new CValueControl("CustomSteerMax", "横向：最大转向(0)", "", "../assets/offroad/icon_logic.png", 0, 30000, 5));
   latLongToggles->addItem(new CValueControl("CustomSteerDeltaUp", "横向：转向增量上限(0)", "", "../assets/offroad/icon_logic.png", 0, 50, 1));
   latLongToggles->addItem(new CValueControl("CustomSteerDeltaDown", "横向：转向增量下限(0)", "", "../assets/offroad/icon_logic.png", 0, 50, 1));
+
 
   dispToggles = new ListWidget(this);
   dispToggles->addItem(new CValueControl("ShowDebugUI", "显示：调试信息", "", "../assets/offroad/icon_shell.png", 0, 2, 1));
