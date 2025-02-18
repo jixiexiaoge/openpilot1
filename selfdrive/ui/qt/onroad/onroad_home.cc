@@ -211,7 +211,7 @@ void OnroadWindow::mousePressEvent(QMouseEvent* e) {
   // propagation event to parent(HomeWindow)
   int x = e->x();   // 430 - 500 : gap window
   int y = height() - e->y();  // 60 - 180 : gap window
-  if (x > 430 && x < 500 && y > 60 && y < 180) {
+  if (x > 350 && x < 550 && y > 20 && y < 250) {
     Params	params;
     int longitudinalPersonalityMax = params.getInt("LongitudinalPersonalityMax");
     int personality = (params.getInt("LongitudinalPersonality") - 1 + longitudinalPersonalityMax) % longitudinalPersonalityMax;
