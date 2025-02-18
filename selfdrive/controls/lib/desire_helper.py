@@ -261,7 +261,7 @@ class DesireHelper:
           self.lane_change_direction = LaneChangeDirection.none
         elif not blindspot_detected:
           if self.laneChangeNeedTorque:
-            if torque_applied:
+            if torque_applied and auto_lane_change_available:
               self.lane_change_state = LaneChangeState.laneChangeStarting
           # 운전자가 깜박이켠경우는 바로 차선변경 시작
           elif driver_desire_enabled and lane_available:
