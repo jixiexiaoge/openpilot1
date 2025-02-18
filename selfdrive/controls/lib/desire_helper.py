@@ -12,6 +12,11 @@ TurnDirection = log.Desire
 LANE_CHANGE_SPEED_MIN = 20 * CV.MPH_TO_MS
 LANE_CHANGE_TIME_MAX = 10.
 
+BLINKER_NONE = 0
+BLINKER_LEFT = 1
+BLINKER_RIGHT = 2
+BLINKER_BOTH = 3
+
 DESIRES = {
   LaneChangeDirection.none: {
     LaneChangeState.off: log.Desire.none,
@@ -92,7 +97,7 @@ class DesireHelper:
     self.lane_change_timer = 0.0
     self.lane_change_ll_prob = 1.0
     self.keep_pulse_timer = 0.0
-    self.prev_one_blinker = False
+    self.prev_desire_enabled = False
     self.desire = log.Desire.none
     self.turn_direction = TurnDirection.none
     self.enable_turn_desires = True
@@ -122,45 +127,10 @@ class DesireHelper:
     self.object_detected_count = 0
 
     self.laneChangeNeedTorque = False
+    self.driver_blinker_state = BLINKER_NONE
+    self.atc_type = ""
 
-  def update(self, carstate, modeldata, lateral_active, lane_change_prob, carrotMan, radarState):
-
-    self.laneChangeNeedTorque = self.params.get_bool("LaneChangeNeedTorque")
-
-
-
-    v_ego = carstate.vEgo
-    #one_blinker = carstate.leftBlinker != carstate.rightBlinker
-    leftBlinker = carstate.leftBlinker
-    rightBlinker = carstate.rightBlinker
-    one_blinker = leftBlinker != rightBlinker
-    driver_one_blinker = one_blinker
-
-    below_lane_change_speed = v_ego < LANE_CHANGE_SPEED_MIN
-
-    if not leftBlinker and not rightBlinker:
-      atc_type = carrotMan.atcType
-      if atc_type in ["turn left", "turn right"]:
-        if self.atc_active != 2:
-          below_lane_change_speed = True
-          self.lane_change_timer = 0.0
-          leftBlinker = True if atc_type == "turn left" else False
-          rightBlinker = not leftBlinker
-          self.atc_active = 1
-          self.blinker_ignore = False
-      elif atc_type in ["fork left", "fork right"]:
-        if self.atc_active != 2:
-          below_lane_change_speed = False
-          leftBlinker = True if atc_type == "fork left" else False
-          rightBlinker = not leftBlinker
-          self.atc_active = 1
-      else:
-        self.atc_active = 0
-      one_blinker = leftBlinker != rightBlinker
-    if not one_blinker:
-      self.blinker_ignore = False
-    one_blinker &= not self.blinker_ignore
-
+  def check_lane_state(self, modeldata):
     self.lane_width_left, self.distance_to_road_edge_left, self.distance_to_road_edge_left_far, lane_prob_left = calculate_lane_width(modeldata.laneLines[0], modeldata.laneLineProbs[0],
                                                                                                  modeldata.laneLines[1], modeldata.roadEdges[0])
     self.lane_width_right, self.distance_to_road_edge_right, self.distance_to_road_edge_right_far, lane_prob_right = calculate_lane_width(modeldata.laneLines[3], modeldata.laneLineProbs[3],
@@ -177,13 +147,69 @@ class DesireHelper:
     self.available_right_lane = self.lane_width_right_count.counter > available_count
     self.available_left_edge = self.road_edge_left_count.counter > available_count and self.distance_to_road_edge_left_far > min_lane_width
     self.available_right_edge = self.road_edge_right_count.counter > available_count and self.distance_to_road_edge_right_far > min_lane_width
+   
 
-    if one_blinker:
-      lane_available = self.available_left_lane if leftBlinker else self.available_right_lane
-      edge_available = self.available_left_edge if leftBlinker else self.available_right_edge
-      lane_appeared = self.lane_exist_left_count.counter == int(0.2 / DT_MDL) if leftBlinker else self.lane_exist_right_count.counter == int(0.2 / DT_MDL)
+  def update(self, carstate, modeldata, lateral_active, lane_change_prob, carrotMan, radarState):
 
-      radar = radarState.leadLeft if leftBlinker else radarState.leadRight
+    self.laneChangeNeedTorque = self.params.get_bool("LaneChangeNeedTorque")
+
+
+
+    v_ego = carstate.vEgo
+    below_lane_change_speed = v_ego < LANE_CHANGE_SPEED_MIN
+
+    #### check driver's blinker state
+    driver_blinker_state = carstate.leftBlinker * 1 + carstate.rightBlinker * 2
+    driver_blinker_changed = driver_blinker_state != self.driver_blinker_state
+    self.driver_blinker_state = driver_blinker_state
+    driver_desire_enabled = driver_blinker_state in [BLINKER_LEFT, BLINKER_RIGHT]
+
+    ##### check ATC's blinker state
+    atc_type = carrotMan.atcType
+    atc_blinker_state = BLINKER_NONE
+    if atc_type in ["turn left", "turn right"]:
+      if self.atc_active != 2:
+        below_lane_change_speed = True
+        self.lane_change_timer = 0.0
+        atc_blinker_state = BLINKER_LEFT if atc_type == "turn left" else BLINKER_RIGHT
+        self.atc_active = 1
+        self.blinker_ignore = False
+    elif atc_type in ["fork left", "fork right", "atc left", "atc right"]:
+      if self.atc_active != 2:
+        below_lane_change_speed = False
+        atc_blinker_state = BLINKER_LEFT if atc_type in ["fork left", "atc left"] else BLINKER_RIGHT
+        self.atc_active = 1
+    else:
+      self.atc_active = 0
+    if driver_blinker_state != BLINKER_NONE and atc_blinker_state != BLINKER_NONE and driver_blinker_state != atc_blinker_state:
+      atc_blinker_state = BLINKER_NONE
+      self.atc_active = 2
+    atc_desire_enabled = atc_blinker_state in [BLINKER_LEFT, BLINKER_RIGHT]
+
+    if driver_blinker_state == BLINKER_NONE:
+      self.blinker_ignore = False
+    if self.blinker_ignore:
+      driver_blinker_state = BLINKER_NONE
+      atc_blinker_state = BLINKER_NONE
+      driver_desire_enabled = False
+
+    if self.atc_type != atc_type:
+      atc_desire_enabled = False
+
+    self.atc_type = atc_type
+
+    desire_enabled = driver_desire_enabled or atc_desire_enabled
+    blinker_state = driver_blinker_state if driver_desire_enabled else atc_blinker_state
+    
+    ##### check lane state
+    self.check_lane_state(modeldata)
+    
+    if desire_enabled:
+      lane_available = self.available_left_lane if blinker_state == BLINKER_LEFT else self.available_right_lane
+      edge_available = self.available_left_edge if blinker_state == BLINKER_LEFT else self.available_right_edge
+      lane_appeared = self.lane_exist_left_count.counter == int(0.2 / DT_MDL) if blinker_state == BLINKER_LEFT else self.lane_exist_right_count.counter == int(0.2 / DT_MDL)
+
+      radar = radarState.leadLeft if blinker_state == BLINKER_LEFT else radarState.leadRight
       side_object_dist = radar.dRel + radar.vLead * 4.0 if radar.status else 255
       object_detected = side_object_dist < v_ego * 3.0
       self.object_detected_count = max(1, self.object_detected_count + 1) if object_detected else min(-1, self.object_detected_count - 1)
@@ -194,24 +220,26 @@ class DesireHelper:
       lane_appeared = False
       self.object_detected_count = 0
 
-    auto_lane_change_blocked = leftBlinker
     lane_availabled = not self.lane_available_last and lane_available
     edge_availabled = not self.edge_available_last and edge_available
     side_object_detected = self.object_detected_count > -0.3 / DT_MDL
+    
+    auto_lane_change_blocked = (atc_blinker_state == BLINKER_LEFT) and (driver_blinker_state != BLINKER_LEFT)
     auto_lane_change_available = not auto_lane_change_blocked and lane_availabled and edge_availabled and not side_object_detected
 
     if not lateral_active or self.lane_change_timer > LANE_CHANGE_TIME_MAX:
       self.lane_change_state = LaneChangeState.off
       self.lane_change_direction = LaneChangeDirection.none
       self.turn_direction = TurnDirection.none
-    elif one_blinker and below_lane_change_speed and not carstate.standstill and self.enable_turn_desires:
+    elif desire_enabled and below_lane_change_speed and not carstate.standstill and self.enable_turn_desires:
       self.lane_change_state = LaneChangeState.off
-      self.turn_direction = TurnDirection.turnLeft if leftBlinker else TurnDirection.turnRight
+      self.turn_direction = TurnDirection.turnLeft if blinker_state == BLINKER_LEFT else TurnDirection.turnRight
       self.lane_change_direction = self.turn_direction #LaneChangeDirection.none
+      desire_enabled = False
     else:
       self.turn_direction = TurnDirection.none
       # LaneChangeState.off
-      if self.lane_change_state == LaneChangeState.off and one_blinker and not self.prev_one_blinker and not below_lane_change_speed:
+      if self.lane_change_state == LaneChangeState.off and desire_enabled and not self.prev_desire_enabled and not below_lane_change_speed:
         self.lane_change_state = LaneChangeState.preLaneChange
         self.lane_change_ll_prob = 1.0
 
@@ -219,7 +247,7 @@ class DesireHelper:
       elif self.lane_change_state == LaneChangeState.preLaneChange:
         # Set lane change direction
         self.lane_change_direction = LaneChangeDirection.left if \
-          leftBlinker else LaneChangeDirection.right
+          blinker_state == BLINKER_LEFT else LaneChangeDirection.right
 
         torque_applied = carstate.steeringPressed and \
                          ((carstate.steeringTorque > 0 and self.lane_change_direction == LaneChangeDirection.left) or
@@ -228,7 +256,7 @@ class DesireHelper:
         blindspot_detected = ((carstate.leftBlindspot and self.lane_change_direction == LaneChangeDirection.left) or
                               (carstate.rightBlindspot and self.lane_change_direction == LaneChangeDirection.right))
 
-        if not one_blinker or below_lane_change_speed:
+        if not desire_enabled or below_lane_change_speed:
           self.lane_change_state = LaneChangeState.off
           self.lane_change_direction = LaneChangeDirection.none
         elif not blindspot_detected:
@@ -236,7 +264,7 @@ class DesireHelper:
             if torque_applied:
               self.lane_change_state = LaneChangeState.laneChangeStarting
           # 운전자가 깜박이켠경우는 바로 차선변경 시작
-          elif driver_one_blinker and lane_available:
+          elif driver_desire_enabled and lane_available:
             self.lane_change_state = LaneChangeState.laneChangeStarting
           # ATC작동인경우 차선이 나타나거나 차선이 생기면 차선변경 시작
           # lane_appeared: 차선이 생기는건 안함.. 위험.
@@ -259,7 +287,7 @@ class DesireHelper:
 
         if self.lane_change_ll_prob > 0.99:
           self.lane_change_direction = LaneChangeDirection.none
-          if one_blinker:
+          if desire_enabled:
             self.lane_change_state = LaneChangeState.preLaneChange
           else:
             self.lane_change_state = LaneChangeState.off
@@ -273,9 +301,9 @@ class DesireHelper:
     self.lane_available_last = lane_available
     self.edge_available_last = edge_available
 
-    self.prev_one_blinker = one_blinker
+    self.prev_desire_enabled = desire_enabled
     steering_pressed = carstate.steeringPressed and \
-                     ((carstate.steeringTorque < 0 and leftBlinker) or (carstate.steeringTorque > 0 and rightBlinker))
+                     ((carstate.steeringTorque < 0 and blinker_state == BLINKER_LEFT) or (carstate.steeringTorque > 0 and blinker_state == BLINKER_RIGHT))
     if steering_pressed and self.lane_change_state != LaneChangeState.off:
       self.lane_change_direction = LaneChangeDirection.none
       self.lane_change_state = LaneChangeState.off
@@ -287,6 +315,7 @@ class DesireHelper:
     else:
       self.desire = DESIRES[self.lane_change_direction][self.lane_change_state]
 
+    #print(f"desire = {self.desire}")
     #self.desireLog = f"desire = {self.desire}"
     self.desireLog = f"rlane={self.distance_to_road_edge_right:.1f},{self.distance_to_road_edge_right_far:.1f}"
 

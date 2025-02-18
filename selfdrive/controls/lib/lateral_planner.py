@@ -14,7 +14,6 @@ from openpilot.common.params import Params
 from openpilot.selfdrive.controls.lib.lane_planner_2 import LanePlanner
 from collections import deque
 
-
 TRAJECTORY_SIZE = 33
 CAMERA_OFFSET = 0.04
 
@@ -80,7 +79,7 @@ class LateralPlanner:
     self.x0 = x0
     self.lat_mpc.reset(x0=self.x0)
 
-  def update(self, sm):
+  def update(self, sm, carrot):
     global LATERAL_ACCEL_COST, LATERAL_JERK_COST, STEERING_RATE_COST
     self.readParams -= 1
     if self.readParams <= 0:
@@ -130,22 +129,19 @@ class LateralPlanner:
 
     # Turn off lanes during lane change
     #if self.DH.desire == log.Desire.laneChangeRight or self.DH.desire == log.Desire.laneChangeLeft:
-    activeCarrot = sm['carrotMan'].activeCarrot
-    xDistToTurn = sm['carrotMan'].xDistToTurn
-    atc_activate = activeCarrot > 1 and 0 < xDistToTurn < 250
-    if md.meta.desire != log.Desire.none or atc_activate:
+      
+    if md.meta.desire != log.Desire.none or carrot.atc_active:
       self.LP.lane_change_multiplier = 0.0 #md.meta.laneChangeProb
     else:
       self.LP.lane_change_multiplier = 1.0
 
     lateral_motion_cost = self.lateralMotionCost
     path_cost = self.lateralPathCost
-    atc_type = sm['carrotMan'].atcType
-    if atc_activate:
-      if atc_type == "turn left" and (md.orientationRate.z[-1] > 0.1 or md.meta.desireState[1] > 0.1):
+    if carrot.atc_active:
+      if carrot.atcType == "turn left" and (md.orientationRate.z[-1] > 0.1 or md.meta.desireState[1] > 0.01):
         lateral_motion_cost = self.lateralMotionCostTurn
         path_cost = self.lateralPathCostTurn
-      elif atc_type == "turn right" and (md.orientationRate.z[-1] < -0.1 or md.meta.desireState[2] > 0.1):
+      elif carrot.atcType == "turn right" and (md.orientationRate.z[-1] < -0.1 or md.meta.desireState[2] > 0.01):
         lateral_motion_cost = self.lateralMotionCostTurn
         path_cost = self.lateralPathCostTurn
 
@@ -202,7 +198,7 @@ class LateralPlanner:
     else:
       self.solution_invalid_cnt = 0
 
-  def publish(self, sm, pm):
+  def publish(self, sm, pm, carrot):
     plan_solution_valid = self.solution_invalid_cnt < 2
     plan_send = messaging.new_message('lateralPlan')
     plan_send.valid = sm.all_checks(service_list=['carState', 'controlsState', 'modelV2'])
