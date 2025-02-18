@@ -9,7 +9,7 @@
 #include <QJsonValue>
 #include <QJsonArray>
 #include <QDialog>
-
+#include <QMouseEvent>
 
 #include "selfdrive/ui/qt/util.h"
 #include "selfdrive/ui/carrot.h"
@@ -209,10 +209,21 @@ void OnroadWindow::mousePressEvent(QMouseEvent* e) {
 //  }
 //#endif
   // propagation event to parent(HomeWindow)
-  UIState* s = uiState();
-  s->scene._current_carrot_display = (s->scene._current_carrot_display % 3) + 1;  // 4번: full map은 안보여줌.
-  printf("_current_carrot_display1=%d\n", s->scene._current_carrot_display);
-  QWidget::mousePressEvent(e);
+  int x = e->x();   // 430 - 500 : gap window
+  int y = height() - e->y();  // 60 - 180 : gap window
+  if (x > 430 && x < 500 && y > 60 && y < 180) {
+    Params	params;
+    int longitudinalPersonalityMax = params.getInt("LongitudinalPersonalityMax");
+    int personality = (params.getInt("LongitudinalPersonality") - 1 + longitudinalPersonalityMax) % longitudinalPersonalityMax;
+    params.putIntNonBlocking("LongitudinalPersonality", personality);
+
+  }
+  else {
+    UIState* s = uiState();
+    s->scene._current_carrot_display = (s->scene._current_carrot_display % 3) + 1;  // 4번: full map은 안보여줌.
+    printf("_current_carrot_display1=%d\n", s->scene._current_carrot_display);
+    QWidget::mousePressEvent(e);
+  }
 }
 //OverlayDialog* mapDialog = nullptr;
 void OnroadWindow::offroadTransition(bool offroad) {

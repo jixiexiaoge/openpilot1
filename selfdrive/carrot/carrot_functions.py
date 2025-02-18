@@ -266,6 +266,7 @@ class CarrotPlanner:
       self.trafficState = TrafficState.off
 
   def _update_carrot_man(self, sm, v_ego_kph, v_cruise_kph):
+    atc_active = False
     if sm.alive['carrotMan']:
       carrot_man = sm['carrotMan']
       atc_turn_left = carrot_man.atcType in ["turn left", "atc left"]
