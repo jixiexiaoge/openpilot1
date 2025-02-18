@@ -120,6 +120,11 @@ class CarrotPlanner:
     self.jerk_factor = 1.0
     self.jerk_factor_apply = 1.0
 
+    self.activeCarrot = 0
+    self.xDistToTurn = 0
+    self.atcType = ""
+    self.atc_active = False
+
 
   def _params_update(self):
     self.frame += 1
@@ -217,7 +222,6 @@ class CarrotPlanner:
     stop_x = self.xStopFilter2.process(stop_x)
     return stop_x
 
-
   def check_model_stopping(self, v, v_ego, a_ego, model_x, y, d_rel):
     v_ego_kph = v_ego * CV.MS_TO_KPH
     model_v = self.vFilter.process(v[-1])
@@ -264,7 +268,7 @@ class CarrotPlanner:
   def _update_carrot_man(self, sm, v_ego_kph, v_cruise_kph):
     if sm.alive['carrotMan']:
       carrot_man = sm['carrotMan']
-      atc_turn_left = carrot_man.atcType == "turn left"
+      atc_turn_left = carrot_man.atcType in ["turn left", "atc left"]
       trigger_start = self.carrot_staty_stop = False
       if atc_turn_left or sm['carState'].leftBlinker:
         if self.trafficState_carrot == 1 and carrot_man.trafficState == 3: # red -> left triggered

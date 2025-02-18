@@ -69,6 +69,9 @@ typedef struct UIScene {
   int _display_time_count = 0;
   bool map_on_left;
   uint64_t started_frame;
+
+  bool carrot_experimental_mode = false;
+
 } UIScene;
 
 class UIState : public QObject {
@@ -94,7 +97,6 @@ public:
   float max_distance = 0.0;
   float show_brightness_ratio = 1.0;
   int show_brightness_timer = 20;
-
 
 signals:
   void uiUpdate(const UIState &s);

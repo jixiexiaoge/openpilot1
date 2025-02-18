@@ -59,6 +59,11 @@ static void update_state(UIState *s) {
   } else if (!sm.allAliveAndValid({"wideRoadCameraState"})) {
     scene.light_sensor = -1;
   }
+  if (sm.updated("longitudinalPlan")) {
+    auto lp = sm["longitudinalPlan"].getLongitudinalPlan();
+    scene.carrot_experimental_mode = lp.getXState() == 4;
+  }
+
   scene.started = sm["deviceState"].getDeviceState().getStarted() && scene.ignition;
 }
 

@@ -15,7 +15,6 @@ from openpilot.selfdrive.controls.lib.drive_helpers import CONTROL_N, get_speed_
 from openpilot.selfdrive.car.cruise import V_CRUISE_MAX, V_CRUISE_UNSET
 from openpilot.common.swaglog import cloudlog
 
-from openpilot.selfdrive.carrot.carrot_functions import CarrotPlanner
 
 LON_MPC_STEP = 0.2  # first step is 0.2s
 A_CRUISE_MIN = -2.0 #-1.2
@@ -87,7 +86,6 @@ class LongitudinalPlanner:
     self.j_desired_trajectory = np.zeros(CONTROL_N)
     self.solverExecutionTime = 0.0
 
-    self.carrot = CarrotPlanner()
     self.vCluRatio = 1.0
 
     self.v_cruise_kph = 0.0
@@ -112,7 +110,7 @@ class LongitudinalPlanner:
       throttle_prob = 1.0
     return x, v, a, j, throttle_prob
 
-  def update(self, sm):
+  def update(self, sm, carrot):
     self.mpc.mode = 'blended' if sm['selfdriveState'].experimentalMode else 'acc'
 
     if len(sm['carControl'].orientationNED) == 3:
@@ -123,7 +121,8 @@ class LongitudinalPlanner:
     v_ego = sm['carState'].vEgo
     v_cruise_kph = min(sm['carState'].vCruise, V_CRUISE_MAX)
 
-    self.v_cruise_kph = self.carrot.update(sm, v_cruise_kph)
+    self.v_cruise_kph = carrot.update(sm, v_cruise_kph)
+    self.mpc.mode = carrot.mode
     v_cruise = self.v_cruise_kph * CV.KPH_TO_MS
 
     vCluRatio = sm['carState'].vCluRatio
@@ -139,14 +138,14 @@ class LongitudinalPlanner:
     # Reset current state when not engaged, or user is controlling the speed
     reset_state = long_control_off if self.CP.openpilotLongitudinalControl else not sm['selfdriveState'].enabled
     # PCM cruise speed may be updated a few cycles later, check if initialized
-    reset_state = reset_state or not v_cruise_initialized or self.carrot.soft_hold_active
+    reset_state = reset_state or not v_cruise_initialized or carrot.soft_hold_active
 
     # No change cost when user is controlling the speed, or when standstill
     prev_accel_constraint = not (reset_state or sm['carState'].standstill)
 
     if self.mpc.mode == 'acc':
       #accel_limits = [A_CRUISE_MIN, get_max_accel(v_ego)]
-      accel_limits = [A_CRUISE_MIN, self.carrot.get_carrot_accel(v_ego)]
+      accel_limits = [A_CRUISE_MIN, carrot.get_carrot_accel(v_ego)]
       steer_angle_without_offset = sm['carState'].steeringAngleDeg - sm['liveParameters'].angleOffsetDeg
       accel_limits_turns = limit_accel_in_turns(v_ego, steer_angle_without_offset, accel_limits, self.CP)
     else:
@@ -180,10 +179,10 @@ class LongitudinalPlanner:
     accel_limits_turns[0] = min(accel_limits_turns[0], self.a_desired + 0.05)
     accel_limits_turns[1] = max(accel_limits_turns[1], self.a_desired - 0.05)
 
-    self.mpc.set_weights(prev_accel_constraint, personality=sm['selfdriveState'].personality, jerk_factor = self.carrot.jerk_factor_apply)
+    self.mpc.set_weights(prev_accel_constraint, personality=sm['selfdriveState'].personality, jerk_factor = carrot.jerk_factor_apply)
     self.mpc.set_accel_limits(accel_limits_turns[0], accel_limits_turns[1])
     self.mpc.set_cur_state(self.v_desired_filter.x, self.a_desired)
-    self.mpc.update(self.carrot, reset_state, sm['radarState'], v_cruise, x, v, a, j, personality=sm['selfdriveState'].personality)
+    self.mpc.update(carrot, reset_state, sm['radarState'], v_cruise, x, v, a, j, personality=sm['selfdriveState'].personality)
 
     self.v_desired_trajectory = np.interp(CONTROL_N_T_IDX, T_IDXS_MPC, self.mpc.v_solution)
     self.a_desired_trajectory = np.interp(CONTROL_N_T_IDX, T_IDXS_MPC, self.mpc.a_solution)
@@ -199,7 +198,7 @@ class LongitudinalPlanner:
     self.a_desired = float(np.interp(self.dt, CONTROL_N_T_IDX, self.a_desired_trajectory))
     self.v_desired_filter.x = self.v_desired_filter.x + self.dt * (self.a_desired + a_prev) / 2.0
 
-  def publish(self, sm, pm):
+  def publish(self, sm, pm, carrot):
     plan_send = messaging.new_message('longitudinalPlan')
 
     plan_send.valid = sm.all_checks(service_list=['carState', 'controlsState', 'selfdriveState'])
@@ -229,12 +228,12 @@ class LongitudinalPlanner:
 
     longitudinalPlan.vTarget = float(v_target)
     longitudinalPlan.jTarget = float(j_target)
-    longitudinalPlan.xState = self.carrot.xState.value
-    longitudinalPlan.trafficState = self.carrot.trafficState.value
+    longitudinalPlan.xState = carrot.xState.value
+    longitudinalPlan.trafficState = carrot.trafficState.value
     longitudinalPlan.xTarget = self.v_cruise_kph
     longitudinalPlan.tFollow = float(self.mpc.t_follow)
     longitudinalPlan.desiredDistance = float(self.mpc.desired_distance)
-    longitudinalPlan.events = self.carrot.events.to_msg()
-    longitudinalPlan.myDrivingMode = self.carrot.myDrivingMode.value
+    longitudinalPlan.events = carrot.events.to_msg()
+    longitudinalPlan.myDrivingMode = carrot.myDrivingMode.value
 
     pm.send('longitudinalPlan', plan_send)

@@ -361,7 +361,7 @@ class CarrotMan:
             #print(f"curvatures= {[round(s, 4) for s in curvatures]}")
             #print(f"speeds= {[round(s, 1) for s in speeds]}")
             # Apply acceleration limits in reverse to adjust speeds
-            accel_limit = self.carrot_serv.autoNaviSpeedDecelRate * 0.9 # m/s^2, 설정된값의 90%를 사용하여, 좀더 낮은속도로 진입하도록 유도
+            accel_limit = self.carrot_serv.autoNaviSpeedDecelRate # m/s^2
             accel_limit_kmh = accel_limit * 3.6  # Convert to km/h per second
             out_speeds = [0] * len(speeds)
             out_speeds[-1] = speeds[-1]  # Set the last speed as the initial value
@@ -1303,7 +1303,7 @@ class CarrotServ:
       if check_steer:
         self.atc_activate_count = max(0, self.atc_activate_count + 1)
       if atc_type in ["turn left", "turn right"] and x_dist_to_turn > start_turn_dist:
-        atc_type = "fork left" if atc_type == "turn left" else "fork right"
+        atc_type = "atc left" if atc_type == "turn left" else "atc right"
 
     if self.autoTurnMapChange > 0 and check_steer: 
       #print(f"x_dist_to_turn: {x_dist_to_turn}, atc_start_dist: {atc_start_dist}")
@@ -1318,9 +1318,9 @@ class CarrotServ:
         if not self.atc_paused:
           steering_pressed = sm["carState"].steeringPressed
           steering_torque = sm["carState"].steeringTorque
-          if steering_pressed and steering_torque < 0 and atc_type == "fork left":
+          if steering_pressed and steering_torque < 0 and atc_type in ["fork left", "atc left"]:
             self.atc_paused = True
-          elif steering_pressed and steering_torque > 0 and atc_type == "fork right":
+          elif steering_pressed and steering_torque > 0 and atc_type in ["fork right", "atc right"]:
             self.atc_paused = True
       else:
         self.atc_paused = False

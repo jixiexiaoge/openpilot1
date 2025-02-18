@@ -1254,8 +1254,8 @@ public:
         const auto car_state = sm["carState"].getCarState();
         QString atc_type = QString::fromStdString(carrot_man.getAtcType());
 
-        bool left_blinker = car_state.getLeftBlinker() || atc_type=="fork left" || atc_type =="turn left";
-        bool right_blinker = car_state.getRightBlinker() || atc_type=="fork right" || atc_type =="turn right";
+        bool left_blinker = car_state.getLeftBlinker() || atc_type=="fork left" || atc_type =="turn left" || atc_type == "atc left";
+        bool right_blinker = car_state.getRightBlinker() || atc_type=="fork right" || atc_type =="turn right" || atc_type == "atc right";
 
         _right_blinker = false;
         _left_blinker = false;
