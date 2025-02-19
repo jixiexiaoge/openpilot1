@@ -449,7 +449,7 @@ class VCruiseCarrot:
         self._add_log(f"AutoCruiseControl cancel timer RESET {button_type}")
         self.autoCruiseControl_cancel_timer = 0
       if self._cruise_cancel_state:
-        self._add_log("Cruise Cancel state RESET {button_type}")
+        self._add_log(f"Cruise Cancel state RESET {button_type}")
         self._cruise_cancel_state = False
 
     if not long_pressed:
