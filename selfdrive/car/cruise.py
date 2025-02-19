@@ -503,8 +503,6 @@ class VCruiseCarrot:
         v_cruise_kph = button_kph
         self._v_cruise_kph_at_brake = 0
       elif button_type == ButtonType.decelCruise:
-        if cruise_activated:
-          v_cruise_kph = self.v_ego_kph_set
         self._pause_auto_speed_up = True
         v_cruise_kph = button_kph
         self._v_cruise_kph_at_brake = 0
